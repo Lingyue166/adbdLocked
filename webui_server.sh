@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # webui_server.sh — WebUI 轻量 HTTP 服务器
 #
-# 使用命名管道实现与 nc 的双向通信
+# 使用双 FIFO 实现与 nc 的双向通信
 
 MODDIR="${0%/*}"
 . "${MODDIR}/common.sh"
@@ -15,6 +15,10 @@ cfg_init
 PORT=$(cfg_get webui_port)
 PORT=${PORT:-7777}
 
+# 清理残留进程和端口
+pkill -f "nc.*-l.*-p.*${PORT}" 2>/dev/null
+sleep 1
+
 # 防止重复启动
 if [ -f "$WEBUI_PID_FILE" ]; then
     old_pid=$(cat "$WEBUI_PID_FILE")
@@ -26,14 +30,18 @@ fi
 
 echo $$ > "$WEBUI_PID_FILE"
 
-# 命名管道
-FIFO="/tmp/adbdLocked_fifo_$$"
-rm -f "$FIFO"
-mkfifo "$FIFO"
+# 双向通信用 FIFO
+REQ_FIFO="/tmp/adbdLocked_req"
+RSP_FIFO="/tmp/adbdLocked_rsp"
+rm -f "$REQ_FIFO" "$RSP_FIFO"
+mkfifo "$REQ_FIFO"
+mkfifo "$RSP_FIFO"
 
 cleanup() {
     log "WebUI 服务器正在关闭"
-    rm -f "$WEBUI_PID_FILE" "$FIFO"
+    rm -f "$WEBUI_PID_FILE" "$REQ_FIFO" "$RSP_FIFO"
+    # 清理子进程
+    kill $(jobs -p) 2>/dev/null
     exit 0
 }
 
@@ -132,8 +140,7 @@ handle_api_connect() {
 
 handle_api_disconnect() {
     [ -z "$1" ] && { send_error 400 "缺少设备参数"; return; }
-    adb_disconnect "$1"
-    send_json "{\"ok\":true}"
+    adb_disconnect "$1"; send_json "{\"ok\":true}"
 }
 
 # ============================================================
@@ -155,36 +162,49 @@ handle_request() {
 }
 
 # ============================================================
-# 请求处理循环（通过命名管道与 nc 通信）
+# HTTP 服务器主循环（双 FIFO 方案）
 # ============================================================
 
-log "WebUI 服务器正在监听端口 $PORT"
+log "正在监听端口 $PORT"
 
 while true; do
-    # nc 从 FIFO 读取响应发送给客户端，同时将客户端请求输出到 stdout
-    # 我们将 nc 的 stdout 重定向到 stdin，形成双向通信
-    (cat "$FIFO") | nc -l -p "$PORT" | (
-        read -r request_line
-        [ -z "$request_line" ] && exit 0
+    # nc 接收客户端请求 → 写入 REQ_FIFO
+    # nc 从 RSP_FIFO 读取响应 → 发送给客户端
+    # 请求处理从 REQ_FIFO 读取，写入 RSP_FIFO
+    cat "$REQ_FIFO" | nc -l -p "$PORT" | cat > "$RSP_FIFO" &
 
+    # 从 FIFO 读取请求，处理后写入响应 FIFO
+    # 使用 exec 绑定 fd：fd3 读请求，fd4 写响应
+    exec 3<>"$REQ_FIFO" 4<>"$RSP_FIFO"
+
+    # 读取请求行
+    read -r request_line <&3
+    if [ -n "$request_line" ]; then
         method=$(echo "$request_line" | awk '{print $1}')
         path=$(echo "$request_line" | awk '{print $2}')
 
+        # 读取请求头
         content_len=0
-        while read -r header; do
+        while read -r header <&3; do
             header=$(echo "$header" | tr -d '\r')
             [ -z "$header" ] && break
             case "$header" in Content-Length:*) content_len=$(echo "$header" | awk '{print $2}') ;; esac
         done
 
+        # 读取请求体
         body=""
-        [ "$content_len" -gt 0 ] 2>/dev/null && body=$(dd bs=1 count="$content_len" 2>/dev/null)
+        if [ "$content_len" -gt 0 ] 2>/dev/null; then
+            body=$(dd bs=1 count="$content_len" <&3 2>/dev/null)
+        fi
 
-        # 将响应写入 FIFO（nc 从 FIFO 读取并发送给客户端）
-        handle_request "$method" "$path" "$body" > "$FIFO"
-    ) &
+        # 处理请求，响应写入 fd4
+        handle_request "$method" "$path" "$body" >&4
+    fi
 
-    # 等待当前请求处理完成
-    wait $! 2>/dev/null
-    sleep 0.1
+    # 关闭 fd
+    exec 3>&- 4>&-
+
+    # 等待 nc 结束
+    wait 2>/dev/null
+    sleep 0.2
 done

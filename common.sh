@@ -4,10 +4,10 @@
 
 MODDIR="${0%/*}"
 
-# 确保常用命令在 PATH 中
-for p in /system/bin /system/xbin /vendor/bin /data/adb /data/adb/ksu/bin /data/adb/magisk; do
-    case ":$PATH:" in *":$p:"*) ;; *) export PATH="$p:$PATH" ;; esac
-done
+# 仅在 PATH 为空或缺少关键路径时补充，避免覆盖系统 PATH
+if [ -z "$PATH" ]; then
+    export PATH="/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin:/data/adb/ksu/bin"
+fi
 
 CFG_DIR="/data/adb/adbdLocked"
 CFG_FILE="${CFG_DIR}/config.conf"

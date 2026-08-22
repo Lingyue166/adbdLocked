@@ -24,7 +24,9 @@ cfg_init
 [ -f "$WEBUI_PID_FILE" ] && { kill "$(cat "$WEBUI_PID_FILE")" 2>/dev/null; rm -f "$WEBUI_PID_FILE"; }
 pkill -f "daemon.sh" 2>/dev/null
 pkill -f "webui_server.sh" 2>/dev/null
-sleep 1
+pkill -f "nc.*-l.*-p.*7777" 2>/dev/null
+rm -f /tmp/adbdLocked_req /tmp/adbdLocked_rsp /tmp/adbdLocked_fifo_* /tmp/adbdLocked_in_* /tmp/adbdLocked_out_*
+sleep 2
 
 # 启动 WebUI 服务器
 nohup sh "${MODDIR}/webui_server.sh" >> "${LOG_DIR}/webui.log" 2>&1 &
