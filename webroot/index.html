@@ -141,10 +141,8 @@ body {
 
 .btn-full:active { opacity: 0.8; }
 
-.btn-full.disabled {
-    background: var(--border);
-    color: var(--text-dim);
-    cursor: not-allowed;
+.btn-full:visited {
+    color: var(--bg);
 }
 
 /* 提示文字 */
@@ -219,7 +217,7 @@ body {
 </div>
 
 <!-- 进入完整 WebUI -->
-<a id="webuiLink" class="btn-full disabled" onclick="openWebUI()">打开完整控制面板</a>
+<a id="webuiLink" class="btn-full" href="http://localhost:7777" target="_blank">打开完整控制面板</a>
 
 <div class="hint" id="hint">
     完整控制面板提供模式切换、设备管理、参数设置等全部功能
@@ -280,13 +278,6 @@ async function updateStatus() {
     document.getElementById('infoAuto').textContent = data.auto_approve ? '已开启' : '未开启';
 
     detail.style.display = 'block';
-    link.classList.remove('disabled');
-}
-
-function openWebUI() {
-    const link = document.getElementById('webuiLink');
-    if (link.classList.contains('disabled')) return;
-    window.open('http://localhost:7777', '_blank');
 }
 
 // 初始化

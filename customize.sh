@@ -88,6 +88,7 @@ set_perm "$MODPATH/service.sh" 0 0 0755
 set_perm "$MODPATH/uninstall.sh" 0 0 0755
 set_perm "$MODPATH/daemon.sh" 0 0 0755
 set_perm "$MODPATH/webui_server.sh" 0 0 0755
+set_perm "$MODPATH/webui_handler.sh" 0 0 0755
 set_perm "$MODPATH/common.sh" 0 0 0755
 
 # ============================================================
