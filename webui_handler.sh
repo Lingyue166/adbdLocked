@@ -52,7 +52,10 @@ fi
 case "$path" in
     /)
         if [ -f "${MODDIR}/webui/index.html" ]; then
-            html_reply "$(cat "${MODDIR}/webui/index.html")"
+            # 直接输出，不通过参数传递（避免 shell 参数长度限制）
+            local fsize=$(wc -c < "${MODDIR}/webui/index.html")
+            printf "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n" "$fsize"
+            cat "${MODDIR}/webui/index.html"
         else
             json_reply "500 Internal Server Error" "{\"error\":\"文件未找到\"}"
         fi

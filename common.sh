@@ -260,10 +260,17 @@ reconnect_last() {
 
 # 更新 module.prop 的 description 字段，显示当前运行状态
 update_module_status() {
-    local mode running screen dev_count mode_name
+    local mode screen dev_count mode_name daemon_status
     mode=$(cfg_get mode)
-    running="运行中"
-    [ "$mode" = "off" ] && running="已停止"
+
+    # 检查守护进程是否真的在运行
+    daemon_status="未运行"
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE" 2>/dev/null)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            daemon_status="运行中"
+        fi
+    fi
 
     if screen_on; then
         screen="亮屏"
@@ -283,7 +290,7 @@ update_module_status() {
         *)       mode_name="$mode" ;;
     esac
 
-    local desc="状态: ${running} | 模式: ${mode_name} | 屏幕: ${screen} | 设备: ${dev_count}台"
+    local desc="服务: ${daemon_status} | 模式: ${mode_name} | 屏幕: ${screen} | 设备: ${dev_count}台"
 
     # 查找 module.prop 文件
     local prop_file=""
