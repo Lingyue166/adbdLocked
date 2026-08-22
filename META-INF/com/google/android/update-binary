@@ -1,0 +1,134 @@
+#!/sbin/sh
+
+# 通用模块安装器
+# 支持: Magisk, KernelSU, Sukisu (兼容 APatch)
+#
+# 检测当前 root 方案并委托给 customize.sh 处理安装逻辑。
+
+#################
+# 初始化
+#################
+
+# 安装期间临时关闭 SELinux 强制模式
+if [ "$(getenforce)" = "Enforcing" ]; then
+    ORIGSE=Enforcing
+    setenforce 0
+fi
+
+OUTFD=$2
+ZIPFILE=$3
+
+# 挂载分区
+mount /data 2>/dev/null
+
+[ -f /data/adb/magisk/util_functions.sh ] && MAGISK=true || MAGISK=false
+[ -d /data/adb/ksu ] && KSU=true || KSU=false
+[ -d /data/adb/ap ] && APATCH=true || APATCH=false
+[ -d /data/adb/sukisu ] && SUKISU=true || SUKISU=false
+
+#########################
+# Magisk 环境
+#########################
+
+# 如果存在 Magisk，加载其 util_functions.sh 以获得完整 API 支持
+if $MAGISK; then
+    . /data/adb/magisk/util_functions.sh
+    exit $?
+fi
+
+##########################
+# 回退安装器
+# (KernelSU / Sukisu / APatch / 通用)
+##########################
+
+# 为非 Magisk 环境提供 ui_print 函数
+ui_print() {
+    echo -e "ui_print $1\nui_print" >> /proc/self/fd/$OUTFD
+}
+
+abort() {
+    ui_print "错误: $1"
+    [ "$ORIGSE" = "Enforcing" ] && setenforce 1
+    exit 1
+}
+
+set_perm() {
+    chown $2:$3 $1 || return 1
+    chmod $4 $1 || return 1
+    [ -z "$5" ] && chcon u:object_r:system_file:s0 $1 || chcon $5 $1
+}
+
+set_perm_recursive() {
+    find "$1" -type d 2>/dev/null | while read dir; do
+        set_perm "$dir" "$2" "$3" "$4" "$6"
+    done
+    find "$1" -type f -o -type l 2>/dev/null | while read file; do
+        set_perm "$file" "$2" "$3" "$5" "$7"
+    done
+}
+
+mktouch() {
+    mkdir -p "${1%/*}" 2>/dev/null
+    [ -z "$2" ] && touch "$1" || echo "$2" > "$1"
+    chmod 644 "$1"
+}
+
+# 获取设备架构
+ARCH=$(getprop ro.product.cpu.abi)
+case "$ARCH" in
+    arm64-v8a) ARCH=arm64; IS64BIT=true ;;
+    armeabi-v7a|armeabi) ARCH=arm; IS64BIT=false ;;
+    x86_64) ARCH=x64; IS64BIT=true ;;
+    x86) ARCH=x86; IS64BIT=false ;;
+esac
+
+# 获取 Android API 版本
+API=$(getprop ro.build.version.sdk)
+
+# 确定模块安装路径
+if $KSU || $SUKISU; then
+    MODULEROOT="/data/adb/ksu/modules"
+elif $APATCH; then
+    MODULEROOT="/data/adb/ap/modules"
+else
+    MODULEROOT="/data/adb/modules"
+fi
+
+# 从 module.prop 提取模块 ID
+MODID=$(grep_prop id "$TMPDIR/module.prop")
+[ -z "$MODID" ] && abort "无法从 module.prop 确定模块 ID"
+
+MODPATH="$MODULEROOT/$MODID"
+
+SKIPUNZIP=0
+
+# 执行 customize.sh
+if [ -f "$TMPDIR/customize.sh" ]; then
+    ui_print "- 正在执行 customize.sh..."
+    . "$TMPDIR/customize.sh"
+fi
+
+# 解压模块文件（除非 customize.sh 设置了 SKIPUNZIP=1）
+if [ "$SKIPUNZIP" -ne 1 ]; then
+    ui_print "- 正在解压模块文件..."
+    mkdir -p "$MODPATH"
+    unzip -o "$ZIPFILE" -x 'META-INF/*' 'customize.sh' -d "$MODPATH" >&2
+
+    set_perm_recursive "$MODPATH" 0 0 0755 0644
+    find "$MODPATH" -name "*.sh" -exec chmod 0755 {} \; 2>/dev/null
+fi
+
+# 处理 REPLACE 列表（系统覆盖路径）
+if [ -n "$REPLACE" ]; then
+    for target in $REPLACE; do
+        mkdir -p "$MODPATH/system${target}"
+        touch "$MODPATH/system${target}/.replace"
+    done
+fi
+
+# 恢复 SELinux
+[ "$ORIGSE" = "Enforcing" ] && setenforce 1
+
+ui_print "- 模块 $MODID 安装成功！"
+ui_print "- 请重启设备以激活。"
+exit 0

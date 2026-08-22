@@ -1,0 +1,20 @@
+# 构建产物
+*.zip
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器文件
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# 日志
+logs/
+
+# 临时文件
+*.tmp
+*.bak

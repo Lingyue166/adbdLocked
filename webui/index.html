@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>adbdLocked</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+    padding-bottom: 80px;
+}
+
+.header {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+}
+
+.header .subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+/* Status Bar */
+.status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-dot.standby { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+.status-dot.off { background: var(--red); }
+
+.status-label {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.status-info {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* Mode Switcher */
+.mode-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.mode-btn {
+    padding: 14px 8px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.mode-btn:active { transform: scale(0.97); }
+
+.mode-btn.active-on {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(63, 185, 80, 0.1);
+}
+
+.mode-btn.active-standby {
+    border-color: var(--yellow);
+    color: var(--yellow);
+    background: rgba(210, 153, 34, 0.1);
+}
+
+.mode-btn.active-off {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(248, 81, 73, 0.1);
+}
+
+.mode-desc {
+    font-size: 11px;
+    font-weight: 400;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+/* Toggle Switch */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.toggle-row:last-child { border-bottom: none; }
+
+.toggle-label {
+    flex: 1;
+}
+
+.toggle-label .name {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.toggle-label .desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.toggle {
+    position: relative;
+    width: 48px;
+    height: 28px;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border);
+    border-radius: 28px;
+    transition: 0.2s;
+}
+
+.toggle .slider::before {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+
+.toggle input:checked + .slider {
+    background: var(--green);
+}
+
+.toggle input:checked + .slider::before {
+    transform: translateX(20px);
+}
+
+/* Input Fields */
+.input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.input-row:last-child { border-bottom: none; }
+
+.input-row label {
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 80px;
+    flex-shrink: 0;
+}
+
+.input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: monospace;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-row input:focus {
+    border-color: var(--accent);
+}
+
+.input-row input::placeholder {
+    color: var(--text-dim);
+    opacity: 0.5;
+}
+
+.input-row .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.btn-sm {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-sm:active {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+/* Device List */
+.device-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.device-item:last-child { border-bottom: none; }
+
+.device-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.device-status.connected { background: var(--green); }
+.device-status.history { background: var(--text-dim); }
+
+.device-addr {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-icon:active {
+    background: var(--border);
+    color: var(--text);
+}
+
+/* Manual Connect */
+.connect-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.connect-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: monospace;
+    outline: none;
+}
+
+.connect-row input:focus { border-color: var(--accent); }
+
+.btn-primary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-primary:active { opacity: 0.8; }
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 13px;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    max-width: 90%;
+    text-align: center;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.error { border-color: var(--red); color: var(--red); }
+.toast.success { border-color: var(--green); color: var(--green); }
+
+/* Empty State */
+.empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-dim);
+    font-size: 13px;
+}
+
+/* Loading */
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (min-width: 480px) {
+    body { max-width: 420px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1>adbdLocked</h1>
+    <div class="subtitle">ADB 无线调试管理</div>
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar" id="statusBar">
+    <div>
+        <span class="status-dot off" id="statusDot"></span>
+        <span class="status-label" id="statusLabel">加载中...</span>
+    </div>
+    <div class="status-info" id="statusInfo">--</div>
+</div>
+
+<!-- Mode Switcher -->
+<div class="card">
+    <div class="card-title">运行模式</div>
+    <div class="mode-group">
+        <button class="mode-btn" id="modeOn" onclick="setMode('on')">
+            <div>开启</div>
+            <div class="mode-desc">50s全量重连</div>
+        </button>
+        <button class="mode-btn" id="modeStandby" onclick="setMode('standby')">
+            <div>预备</div>
+            <div class="mode-desc">5min最近设备</div>
+        </button>
+        <button class="mode-btn" id="modeOff" onclick="setMode('off')">
+            <div>关闭</div>
+            <div class="mode-desc">还原默认</div>
+        </button>
+    </div>
+</div>
+
+<!-- Features -->
+<div class="card">
+    <div class="card-title">功能设置</div>
+
+    <div class="toggle-row">
+        <div class="toggle-label">
+            <div class="name">免配对码</div>
+            <div class="desc">电脑端输入任意配对码均可通过</div>
+        </div>
+        <label class="toggle">
+            <input type="checkbox" id="bypassPairing" onchange="updateConfig()">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-row">
+        <div class="toggle-label">
+            <div class="name">局域网免电脑操作</div>
+            <div class="desc">随意验证码通过，无须电脑发起连接</div>
+        </div>
+        <label class="toggle">
+            <input type="checkbox" id="autoApprove" onchange="updateConfig()">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="input-row">
+        <label>验证码</label>
+        <input type="text" id="customCode" placeholder="6位数字" maxlength="6"
+               inputmode="numeric" pattern="[0-9]*">
+        <button class="btn-sm" onclick="setCode()">设置</button>
+    </div>
+
+    <div class="input-row">
+        <label>配对端口</label>
+        <input type="number" id="customPort" placeholder="1024-65535"
+               min="1024" max="65535" inputmode="numeric">
+        <button class="btn-sm" onclick="setPort()">锁定</button>
+    </div>
+</div>
+
+<!-- Devices -->
+<div class="card">
+    <div class="card-title">设备管理</div>
+    <div id="deviceList">
+        <div class="empty">暂无设备</div>
+    </div>
+    <div class="connect-row">
+        <input type="text" id="connectAddr" placeholder="IP:端口 (如 192.168.1.5:5555)"
+               inputmode="url">
+        <button class="btn-primary" onclick="connectDevice()">连接</button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let currentMode = 'off';
+let statusTimer = null;
+
+// ============================================================
+// API
+// ============================================================
+async function api(path, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (body) {
+        opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        opts.body = typeof body === 'string' ? body : new URLSearchParams(body).toString();
+    }
+    try {
+        const r = await fetch('/api/' + path, opts);
+        return await r.json();
+    } catch (e) {
+        console.error('API error:', e);
+        return { error: e.message };
+    }
+}
+
+// ============================================================
+// Status Polling
+// ============================================================
+async function refreshStatus() {
+    const data = await api('status');
+    if (data.error) return;
+
+    currentMode = data.mode;
+    updateModeUI(data.mode);
+    updateStatusUI(data);
+    updateDeviceList(data);
+
+    // Sync toggles
+    document.getElementById('bypassPairing').checked = data.bypass_pairing === 1;
+    document.getElementById('autoApprove').checked = data.auto_approve === 1;
+
+    // Sync inputs (only if not focused)
+    if (document.activeElement !== document.getElementById('customCode')) {
+        document.getElementById('customCode').value = data.custom_code || '';
+    }
+    if (document.activeElement !== document.getElementById('customPort')) {
+        document.getElementById('customPort').value = data.custom_port || '';
+    }
+}
+
+function updateModeUI(mode) {
+    const btns = { on: 'modeOn', standby: 'modeStandby', off: 'modeOff' };
+    Object.entries(btns).forEach(([m, id]) => {
+        const el = document.getElementById(id);
+        el.className = 'mode-btn' + (m === mode ? ` active-${m}` : '');
+    });
+}
+
+function updateStatusUI(data) {
+    const dot = document.getElementById('statusDot');
+    const label = document.getElementById('statusLabel');
+    const info = document.getElementById('statusInfo');
+
+    dot.className = 'status-dot ' + data.mode;
+
+    const modeNames = { on: '开启', standby: '预备', off: '关闭' };
+    label.textContent = modeNames[data.mode] || data.mode;
+    info.textContent = `屏幕:${data.screen_state === 'on' ? '亮' : '灭'} | 设备:${data.connected_count}`;
+}
+
+function updateDeviceList(data) {
+    const container = document.getElementById('deviceList');
+    const all = new Map();
+
+    // Connected devices
+    (data.connected_devices || []).forEach(d => all.set(d, 'connected'));
+    // History devices
+    (data.history_devices || []).forEach(d => {
+        if (!all.has(d)) all.set(d, 'history');
+    });
+
+    if (all.size === 0) {
+        container.innerHTML = '<div class="empty">暂无设备记录</div>';
+        return;
+    }
+
+    let html = '';
+    all.forEach((status, addr) => {
+        html += `
+        <div class="device-item">
+            <span class="device-status ${status}"></span>
+            <span class="device-addr">${escHtml(addr)}</span>
+            <div class="device-actions">
+                <button class="btn-icon" onclick="reconnectDev('${escHtml(addr)}')" title="重连">↻</button>
+                <button class="btn-icon" onclick="disconnectDev('${escHtml(addr)}')" title="断开">✕</button>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ============================================================
+// Actions
+// ============================================================
+async function setMode(mode) {
+    const r = await api('mode', 'POST', { mode });
+    if (r.ok) {
+        toast(`模式切换为: ${modeName(mode)}`, 'success');
+        refreshStatus();
+    } else {
+        toast(r.error || '切换失败', 'error');
+    }
+}
+
+async function updateConfig() {
+    const bypass = document.getElementById('bypassPairing').checked ? 1 : 0;
+    const auto = document.getElementById('autoApprove').checked ? 1 : 0;
+    await api('config', 'POST', { bypass_pairing: bypass, auto_approve: auto });
+    toast('设置已更新', 'success');
+}
+
+async function setCode() {
+    const code = document.getElementById('customCode').value.trim();
+    if (!code) {
+        // Clear
+        await api('config', 'POST', { custom_code: 'clear' });
+        toast('验证码已清除', 'success');
+        return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+        toast('验证码必须为6位数字', 'error');
+        return;
+    }
+    const r = await api('config', 'POST', { custom_code: code });
+    if (r.ok) {
+        toast('验证码已设置: ' + code, 'success');
+    } else {
+        toast(r.errors || '设置失败', 'error');
+    }
+}
+
+async function setPort() {
+    const port = document.getElementById('customPort').value.trim();
+    if (!port) {
+        await api('config', 'POST', { custom_port: 'clear' });
+        toast('端口已清除', 'success');
+        return;
+    }
+    const p = parseInt(port, 10);
+    if (isNaN(p) || p < 1024 || p > 65535) {
+        toast('端口范围: 1024-65535', 'error');
+        return;
+    }
+    const r = await api('config', 'POST', { custom_port: String(p) });
+    if (r.ok) {
+        toast('端口已锁定: ' + p, 'success');
+    } else {
+        toast(r.errors || '设置失败', 'error');
+    }
+}
+
+async function connectDevice() {
+    const addr = document.getElementById('connectAddr').value.trim();
+    if (!addr) {
+        toast('请输入设备地址', 'error');
+        return;
+    }
+    if (!/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(addr)) {
+        toast('格式: IP:端口', 'error');
+        return;
+    }
+    const r = await api('connect', 'POST', { device: addr });
+    if (r.ok) {
+        toast('已连接: ' + addr, 'success');
+        document.getElementById('connectAddr').value = '';
+        refreshStatus();
+    } else {
+        toast('连接失败: ' + (r.result || ''), 'error');
+    }
+}
+
+async function reconnectDev(addr) {
+    const r = await api('connect', 'POST', { device: addr });
+    toast(r.ok ? '重连成功' : '重连失败', r.ok ? 'success' : 'error');
+    refreshStatus();
+}
+
+async function disconnectDev(addr) {
+    await api('disconnect', 'POST', { device: addr });
+    toast('已断开: ' + addr, 'success');
+    refreshStatus();
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function modeName(m) {
+    return { on: '开启', standby: '预备', off: '关闭' }[m] || m;
+}
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast'; }, 2500);
+}
+
+// ============================================================
+// Init
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    refreshStatus();
+    statusTimer = setInterval(refreshStatus, 3000);
+});
+</script>
+</body>
+</html>
