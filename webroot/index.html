@@ -2,289 +2,41 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>adbdLocked</title>
 <style>
-:root {
-    --bg: #0d1117;
-    --card: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-dim: #8b949e;
-    --accent: #58a6ff;
-    --green: #3fb950;
-    --yellow: #d29922;
-    --red: #f85149;
-    --radius: 12px;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 16px;
-}
-
-.header {
-    text-align: center;
-    padding: 24px 0 16px;
-}
-
-.header h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--accent);
-}
-
-.header .subtitle {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 4px;
-}
-
-.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-/* 状态概览 */
-.status-overview {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-}
-
-.status-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    flex-shrink: 0;
-}
-
-.status-icon.running { background: rgba(63, 185, 80, 0.15); }
-.status-icon.stopped { background: rgba(248, 81, 73, 0.15); }
-.status-icon.loading { background: rgba(88, 166, 255, 0.15); }
-
-.status-detail {
-    flex: 1;
-}
-
-.status-detail .title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.status-detail .info {
-    font-size: 12px;
-    color: var(--text-dim);
-    line-height: 1.6;
-}
-
-/* 模式标签 */
-.mode-tag {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-left: 8px;
-}
-
-.mode-tag.on { background: rgba(63,185,80,0.15); color: var(--green); }
-.mode-tag.standby { background: rgba(210,153,34,0.15); color: var(--yellow); }
-.mode-tag.off { background: rgba(248,81,73,0.15); color: var(--red); }
-
-/* 信息行 */
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-}
-
-.info-row:last-child { border-bottom: none; }
-
-.info-label { color: var(--text-dim); }
-.info-value { font-weight: 500; }
-
-/* 按钮 */
-.btn-full {
-    display: block;
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--bg);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-    text-decoration: none;
-    transition: opacity 0.2s;
-}
-
-.btn-full:active { opacity: 0.8; }
-
-.btn-full:visited {
-    color: var(--bg);
-}
-
-/* 提示文字 */
-.hint {
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 12px;
-    line-height: 1.5;
-}
-
-/* 加载动画 */
-.spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@media (min-width: 480px) {
-    body { max-width: 420px; margin: 0 auto; }
-}
+body{font-family:-apple-system,sans-serif;background:#0d1117;color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}
+.box{max-width:320px}
+h1{color:#58a6ff;font-size:20px;margin-bottom:12px}
+p{color:#8b949e;font-size:13px;line-height:1.6;margin-bottom:16px}
+a{display:block;padding:12px;background:#58a6ff;color:#0d1117;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px}
+a:active{opacity:.8}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:s .8s linear infinite;margin-bottom:12px}
+@keyframes s{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-
-<div class="header">
+<div class="box">
+    <div class="spin" id="spin"></div>
     <h1>adbdLocked</h1>
-    <div class="subtitle">ADB 无线调试管理</div>
+    <p id="msg">正在检测服务状态...</p>
+    <a id="btn" href="http://localhost:7777" target="_blank" style="display:none">打开控制面板</a>
 </div>
-
-<!-- 状态概览 -->
-<div class="card">
-    <div class="status-overview" id="statusOverview">
-        <div class="status-icon loading" id="statusIcon">
-            <div class="spinner"></div>
-        </div>
-        <div class="status-detail">
-            <div class="title" id="statusTitle">正在检测服务状态...</div>
-            <div class="info" id="statusInfo">请稍候</div>
-        </div>
-    </div>
-</div>
-
-<!-- 详细信息 -->
-<div class="card" id="detailCard" style="display:none;">
-    <div class="info-row">
-        <span class="info-label">运行模式</span>
-        <span class="info-value" id="infoMode">--</span>
-    </div>
-    <div class="info-row">
-        <span class="info-label">屏幕状态</span>
-        <span class="info-value" id="infoScreen">--</span>
-    </div>
-    <div class="info-row">
-        <span class="info-label">已连接设备</span>
-        <span class="info-value" id="infoDevices">--</span>
-    </div>
-    <div class="info-row">
-        <span class="info-label">免配对码</span>
-        <span class="info-value" id="infoBypass">--</span>
-    </div>
-    <div class="info-row">
-        <span class="info-label">免电脑操作</span>
-        <span class="info-value" id="infoAuto">--</span>
-    </div>
-</div>
-
-<!-- 进入完整 WebUI -->
-<a id="webuiLink" class="btn-full" href="http://localhost:7777" target="_blank">打开完整控制面板</a>
-
-<div class="hint" id="hint">
-    完整控制面板提供模式切换、设备管理、参数设置等全部功能
-</div>
-
 <script>
-const API_BASE = 'http://localhost:7777/api/';
-let refreshTimer = null;
-
-const MODE_NAMES = { on: '开启', standby: '预备', off: '关闭' };
-
-async function fetchStatus() {
-    try {
-        const r = await fetch(API_BASE + 'status', { signal: AbortSignal.timeout(3000) });
-        if (!r.ok) throw new Error('服务未就绪');
-        return await r.json();
-    } catch (e) {
-        return null;
-    }
-}
-
-async function updateStatus() {
-    const data = await fetchStatus();
-    const icon = document.getElementById('statusIcon');
-    const title = document.getElementById('statusTitle');
-    const info = document.getElementById('statusInfo');
-    const detail = document.getElementById('detailCard');
-    const link = document.getElementById('webuiLink');
-
-    if (!data) {
-        // 服务未运行
-        icon.className = 'status-icon stopped';
-        icon.innerHTML = '✕';
-        title.innerHTML = '服务未运行';
-        info.innerHTML = '守护进程可能尚未启动，请等待开机完成或重启设备';
-        detail.style.display = 'none';
-        link.classList.add('disabled');
-        return;
-    }
-
-    // 服务运行中
-    const mode = data.mode;
-    const modeName = MODE_NAMES[mode] || mode;
-    const screenText = data.screen_state === 'on' ? '亮屏' : '熄屏';
-    const running = mode !== 'off';
-
-    icon.className = 'status-icon ' + (running ? 'running' : 'stopped');
-    icon.innerHTML = running ? '●' : '○';
-
-    title.innerHTML = `服务运行中<span class="mode-tag ${mode}">${modeName}</span>`;
-    info.innerHTML = `屏幕: ${screenText} · 已连接 ${data.connected_count} 台设备`;
-
-    // 详细信息
-    document.getElementById('infoMode').innerHTML = `<span class="mode-tag ${mode}">${modeName}</span>`;
-    document.getElementById('infoScreen').textContent = screenText;
-    document.getElementById('infoDevices').textContent = data.connected_count + ' 台';
-    document.getElementById('infoBypass').textContent = data.bypass_pairing ? '已开启' : '未开启';
-    document.getElementById('infoAuto').textContent = data.auto_approve ? '已开启' : '未开启';
-
-    detail.style.display = 'block';
-}
-
-// 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    updateStatus();
-    refreshTimer = setInterval(updateStatus, 5000);
-});
+(function(){
+    fetch('http://localhost:7777/api/status',{signal:AbortSignal.timeout(3000)})
+    .then(r=>r.json())
+    .then(d=>{
+        document.getElementById('spin').style.display='none';
+        const mn={on:'开启',standby:'预备',off:'关闭'};
+        document.getElementById('msg').textContent=`服务运行中 · 模式: ${mn[d.mode]||d.mode} · 设备: ${d.connected_count}台`;
+        document.getElementById('btn').style.display='block';
+    })
+    .catch(()=>{
+        document.getElementById('spin').style.display='none';
+        document.getElementById('msg').textContent='服务未运行，请等待开机完成或重启设备';
+    });
+})();
 </script>
 </body>
 </html>
