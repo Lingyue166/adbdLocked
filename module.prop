@@ -1,7 +1,7 @@
 id=adbdLocked
 name=adbdLocked
-version=v1.0.3
-versionCode=103
+version=v1.0.4
+versionCode=104
 author=Lingyue166
 description=状态: 未启动 | 模式: 关闭 | 屏幕: -- | 设备: 0台
 updateJson=
