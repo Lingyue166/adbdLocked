@@ -51,6 +51,7 @@ zip -r9 "$OUTPUT" \
     daemon.sh \
     webui_server.sh \
     webui_handler.sh \
+    test.sh \
     webui/ \
     webroot/ \
     META-INF/ \
