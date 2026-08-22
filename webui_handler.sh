@@ -4,9 +4,15 @@
 
 MODDIR="${0%/*}"
 CFG="/data/adb/adbdLocked/config.conf"
+HLOG="/data/adb/adbdLocked/logs/webui.log"
 
 # PATH 兜底
 [ -z "$PATH" ] && export PATH="/system/bin:/system/xbin:/vendor/bin:/data/adb/ksu/bin"
+
+# 请求日志
+hlog() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$HLOG" 2>/dev/null
+}
 
 # ---- 配置读写 ----
 cfg_get() { grep "^$1=" "$CFG" 2>/dev/null | head -1 | cut -d'=' -f2-; }
@@ -24,17 +30,16 @@ json_reply() {
     printf "HTTP/1.1 %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n%s" "$status" "$len" "$body"
 }
 
-html_reply() {
-    local body="$1" len=${#body}
-    printf "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n%s" "$len" "$body"
-}
-
 # ---- 读取请求 ----
 read -r request_line
-[ -z "$request_line" ] && exit 0
+if [ -z "$request_line" ]; then
+    hlog "空请求，跳过"
+    exit 0
+fi
 
 method=$(echo "$request_line" | awk '{print $1}')
 path=$(echo "$request_line" | awk '{print $2}')
+hlog "请求: $method $path"
 
 content_len=0
 while read -r header; do
@@ -48,16 +53,19 @@ if [ "$content_len" -gt 0 ] 2>/dev/null; then
     body=$(dd bs=1 count="$content_len" 2>/dev/null)
 fi
 
-# ---- 路由 ----
+# ---- 路由处理 ----
+start_ts=$(date '+%s' 2>/dev/null || echo 0)
+
 case "$path" in
     /)
         if [ -f "${MODDIR}/webui/index.html" ]; then
-            # 直接输出，不通过参数传递（避免 shell 参数长度限制）
-            local fsize=$(wc -c < "${MODDIR}/webui/index.html")
+            fsize=$(wc -c < "${MODDIR}/webui/index.html")
             printf "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n" "$fsize"
             cat "${MODDIR}/webui/index.html"
+            hlog "响应: 200 HTML ($fsize 字节)"
         else
             json_reply "500 Internal Server Error" "{\"error\":\"文件未找到\"}"
+            hlog "响应: 500 文件未找到"
         fi
         ;;
     /api/status)
@@ -87,13 +95,22 @@ case "$path" in
             done
         fi
 
-        json_reply "200 OK" "{\"mode\":\"${mode}\",\"bypass_pairing\":${bypass:-0},\"custom_code\":\"${code}\",\"custom_port\":\"${port}\",\"auto_approve\":${auto:-0},\"last_device\":\"${last}\",\"screen_state\":\"${scr}\",\"connected_count\":${dev_count},\"connected_devices\":[${dev_list}],\"history_devices\":[${hist_list}],\"webui_port\":${wport:-7777}}"
+        resp="{\"mode\":\"${mode}\",\"bypass_pairing\":${bypass:-0},\"custom_code\":\"${code}\",\"custom_port\":\"${port}\",\"auto_approve\":${auto:-0},\"last_device\":\"${last}\",\"screen_state\":\"${scr}\",\"connected_count\":${dev_count},\"connected_devices\":[${dev_list}],\"history_devices\":[${hist_list}],\"webui_port\":${wport:-7777}}"
+        json_reply "200 OK" "$resp"
+        hlog "响应: 200 状态 (模式=$mode 设备=$dev_count)"
         ;;
     /api/mode)
         new_mode=$(echo "$body" | grep -o 'mode=[^&]*' | cut -d'=' -f2)
         case "$new_mode" in
-            on|standby|off) cfg_set mode "$new_mode"; json_reply "200 OK" "{\"ok\":true,\"mode\":\"${new_mode}\"}" ;;
-            *) json_reply "400 Bad Request" "{\"ok\":false,\"error\":\"无效模式\"}" ;;
+            on|standby|off)
+                cfg_set mode "$new_mode"
+                json_reply "200 OK" "{\"ok\":true,\"mode\":\"${new_mode}\"}"
+                hlog "响应: 200 模式切换为 $new_mode"
+                ;;
+            *)
+                json_reply "400 Bad Request" "{\"ok\":false,\"error\":\"无效模式\"}"
+                hlog "响应: 400 无效模式: $new_mode"
+                ;;
         esac
         ;;
     /api/config)
@@ -123,21 +140,26 @@ case "$path" in
 
         if [ -n "$errors" ]; then
             json_reply "200 OK" "{\"ok\":false,\"errors\":\"${errors}\"}"
+            hlog "响应: 200 配置错误: $errors"
         else
             json_reply "200 OK" "{\"ok\":true}"
+            hlog "响应: 200 配置更新成功"
         fi
         ;;
     /api/connect)
         d=$(echo "$body" | grep -o 'device=[^&]*' | cut -d'=' -f2 | sed 's/%3A/:/g')
         if [ -z "$d" ]; then
             json_reply "400 Bad Request" "{\"ok\":false,\"error\":\"缺少设备\"}"
+            hlog "响应: 400 缺少设备参数"
         else
             r=$(adb connect "$d" 2>&1)
             if [ $? -eq 0 ]; then
                 cfg_set last_device "$d"
                 json_reply "200 OK" "{\"ok\":true,\"result\":\"已连接\"}"
+                hlog "响应: 200 已连接 $d"
             else
                 json_reply "200 OK" "{\"ok\":false,\"result\":\"${r}\"}"
+                hlog "响应: 200 连接失败 $d: $r"
             fi
         fi
         ;;
@@ -145,10 +167,16 @@ case "$path" in
         d=$(echo "$body" | grep -o 'device=[^&]*' | cut -d'=' -f2 | sed 's/%3A/:/g')
         [ -n "$d" ] && adb disconnect "$d" 2>/dev/null
         json_reply "200 OK" "{\"ok\":true}"
+        hlog "响应: 200 已断开 $d"
         ;;
     *)
         json_reply "404 Not Found" "{\"ok\":false,\"error\":\"未找到\"}"
+        hlog "响应: 404 未找到: $path"
         ;;
 esac
+
+end_ts=$(date '+%s' 2>/dev/null || echo 0)
+elapsed=$((end_ts - start_ts))
+hlog "请求完成: $method $path (${elapsed}秒)"
 
 exit 0

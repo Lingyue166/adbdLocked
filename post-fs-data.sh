@@ -1,21 +1,40 @@
 #!/system/bin/sh
 # post-fs-data.sh — 开机早期阶段: 初始化 ADB 配置
-#
-# 在 post-fs-data 阶段运行。根据已保存的模块配置设置 ADB 属性覆盖。
 
 MODDIR="${0%/*}"
 . "${MODDIR}/common.sh"
 
-log "post-fs-data.sh 已启动"
+log "========================================="
+log "post-fs-data.sh 启动 (PID $$)"
+log "========================================="
 
-# 首次启动时初始化配置
+# 初始化配置
+log "步骤 1/3: 初始化配置"
 cfg_init
-
-# 如果模式不是关闭状态，则应用 ADB 配置
-mode=$(cfg_get mode)
-if [ "$mode" != "off" ]; then
-    apply_adb_config
-    log "开机时已应用 ADB 配置 (模式=$mode)"
+if [ $? -eq 0 ]; then
+    log "配置初始化成功"
+else
+    log "!!! 配置初始化失败"
 fi
 
-log "post-fs-data.sh 已完成"
+# 读取当前模式
+log "步骤 2/3: 读取当前模式"
+mode=$(cfg_get mode)
+log "当前模式: $mode"
+
+# 应用 ADB 配置
+log "步骤 3/3: 应用 ADB 配置"
+if [ "$mode" != "off" ]; then
+    apply_adb_config
+    if [ $? -eq 0 ]; then
+        log "ADB 配置应用成功"
+    else
+        log "ADB 配置应用失败或跳过"
+    fi
+else
+    log "模式为 off，跳过 ADB 配置"
+fi
+
+log "========================================="
+log "post-fs-data.sh 完成"
+log "========================================="
